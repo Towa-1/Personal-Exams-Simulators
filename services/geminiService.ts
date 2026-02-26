@@ -9,20 +9,25 @@ if (!process.env.API_KEY) {
 const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
 export const parseQuestionsFromText = async (text: string): Promise<QuestionAnswer[]> => {
-  const prompt = `You are an expert data parser for "Ntow's Exams Simulator".
-Your task is to parse the following pipe-separated data:
-Format: Type (MCQ/NUM) | Question Text | Options (Comma-separated for MCQ, or Unit for NUM) | Correct Answer | Explanation | Image URL
+  const prompt = `You are a strict data parsing engine for an Exam Proctor app.
+Your goal is to convert pipe-separated raw text into a structured JSON array.
 
-Output a valid JSON array of objects with these keys:
-- type: "MCQ" or "NUM"
-- question: string
-- options: array of strings (empty if type is NUM)
-- unit: string (empty if type is MCQ)
-- answerKey: string
-- explanation: string
-- imageUrl: string or null
+INPUT DATA FORMAT (EXTREMELY IMPORTANT - 6 COLUMNS):
+Column 1: Type (Must be "MCQ" or "NUM")
+Column 2: Question (The text of the question)
+Column 3: Options/Unit (Comma-separated options for MCQ, or the unit name for NUM)
+Column 4: Answer (The correct option text for MCQ, or the correct numeric value for NUM)
+Column 5: Explanation (A detailed explanation of the answer)
+Column 6: IMAGE_URL (A URL to an image/diagram, or the string "null" if no image exists)
 
-Data:
+LOGIC:
+- Split EVERY line by the '|' character.
+- Ensure you extract the 6th element (Index 5) as the imageUrl.
+- If the 6th element is "null" or empty, set imageUrl to null.
+- If the 6th element is a valid URL, set imageUrl to that URL string.
+- NEVER ignore the 6th column.
+
+DATA TO PARSE:
 ${text}
 `;
 
@@ -45,7 +50,7 @@ ${text}
               explanation: { type: Type.STRING },
               imageUrl: { type: Type.STRING, nullable: true }
             },
-            required: ["type", "question", "answerKey", "explanation"]
+            required: ["type", "question", "answerKey", "explanation", "imageUrl"]
           }
         }
       }
@@ -54,9 +59,15 @@ ${text}
     const jsonString = response.text;
     if (!jsonString) throw new Error("Empty response from AI.");
     
-    return JSON.parse(jsonString) as QuestionAnswer[];
+    const data = JSON.parse(jsonString);
+    
+    return data.map((item: any) => ({
+      ...item,
+      // Ensure absolute cleanliness of the imageUrl field
+      imageUrl: (item.imageUrl === "null" || !item.imageUrl || item.imageUrl.toString().trim() === "") ? null : item.imageUrl.toString().trim()
+    })) as QuestionAnswer[];
   } catch (error) {
     console.error("Error parsing questions:", error);
-    throw new Error("Failed to parse the exam dataset. Please check your format.");
+    throw new Error("Dataset initialization failed. Ensure you have 6 columns separated by pipes (|) on each line.");
   }
 };
