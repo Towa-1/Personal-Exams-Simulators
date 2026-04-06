@@ -1,5 +1,5 @@
 {
-  "name": "AI Exam Proctor",
-  "description": "An AI-powered exam proctor that takes a list of questions and answers, then quizzes you one question at a time, providing immediate feedback and a final score.",
+  "name": "EMAGYNE",
+  "description": "An AI-powered academic simulator that takes a list of questions and answers, then quizzes you one question at a time, providing immediate feedback and a final score.",
   "requestFramePermissions": []
 }

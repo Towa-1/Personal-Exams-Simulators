@@ -19,8 +19,8 @@ const SetupPhase: React.FC<SetupPhaseProps> = ({ onStart }) => {
   return (
     <div className="text-center animate-fade-in">
       <div className="mb-8">
-        <h2 className="text-3xl font-bold text-white mb-4">Exam Configuration</h2>
-        <p className="text-slate-400">Define your session duration before initiating the simulator.</p>
+        <h2 className="text-3xl font-black text-transparent bg-clip-text bg-gradient-to-r from-yellow-400 to-yellow-600 mb-4">Exam Configuration</h2>
+        <p className="text-slate-600 dark:text-slate-400">Define your session duration before initiating the simulator.</p>
       </div>
 
       <form onSubmit={handleSubmit} className="max-w-xs mx-auto">
@@ -32,12 +32,12 @@ const SetupPhase: React.FC<SetupPhaseProps> = ({ onStart }) => {
             min="1"
             value={minutes}
             onChange={(e) => setMinutes(e.target.value)}
-            className="w-full p-4 bg-slate-950 border-2 border-slate-800 rounded-xl focus:border-amber-500 outline-none text-center text-3xl font-black tracking-tight text-white transition-all placeholder:text-slate-700"
+            className="w-full p-4 bg-slate-50 dark:bg-slate-950 border-2 border-slate-200 dark:border-slate-800 rounded-xl focus:border-yellow-500 outline-none text-center text-3xl font-black tracking-tight text-slate-900 dark:text-white transition-all placeholder:text-slate-400 dark:placeholder:text-slate-700"
           />
         </div>
         <button
           type="submit"
-          className="w-full bg-amber-600 text-white font-black py-4 px-8 rounded-xl hover:bg-amber-500 transition-all uppercase tracking-widest shadow-lg shadow-amber-900/20"
+          className="w-full bg-yellow-600 text-white font-black py-4 px-8 rounded-xl hover:bg-yellow-500 transition-all uppercase tracking-widest shadow-lg shadow-yellow-900/20"
         >
           Start Exam
         </button>
