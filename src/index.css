@@ -54,7 +54,7 @@
 @layer base {
   body {
     @apply bg-slate-950 text-slate-200 min-h-screen transition-all duration-500 ease-in-out selection:bg-primary/30 selection:text-white;
-    background-image: radial-gradient(circle at 50% 50%, var(--theme-bg-gradient-color) 0%, rgba(2, 6, 23, 1) 100%);
+    background-image: radial-gradient(circle at 50% 50%, var(--theme-bg-gradient-color) 0%, var(--color-slate-950) 100%);
   }
 }
 
@@ -112,4 +112,25 @@
   .animate-blink-red {
     animation: blink-red 1s infinite;
   }
+}
+
+.light-theme {
+  --color-slate-950: var(--color-slate-50);
+  --color-slate-900: var(--color-slate-100);
+  --color-slate-850: var(--color-slate-200);
+  --color-slate-800: var(--color-slate-300);
+  --color-slate-750: var(--color-slate-300);
+  --color-slate-700: var(--color-slate-400);
+  --color-slate-600: var(--color-slate-500);
+  --color-slate-500: var(--color-slate-600);
+  --color-slate-400: var(--color-slate-700);
+  --color-slate-350: var(--color-slate-700);
+  --color-slate-300: var(--color-slate-800);
+  --color-slate-200: var(--color-slate-900);
+}
+
+html.disable-code-highlight .react-markdown-container code {
+  background-color: transparent !important;
+  border-color: transparent !important;
+  color: inherit !important;
 }

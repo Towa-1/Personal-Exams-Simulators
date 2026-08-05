@@ -37,7 +37,8 @@ import {
   ChevronLeft,
   HelpCircle,
   Sparkle,
-  ExternalLink
+  ExternalLink,
+  Copy
 } from 'lucide-react';
 
 const STORAGE_KEY = 'emagyne_exam_state';
@@ -362,6 +363,49 @@ export default function App() {
   const [isChatOpen, setIsChatOpen] = useState(false);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [copiedQuestionId, setCopiedQuestionId] = useState<string | null>(null);
+
+  // Sync Global Settings
+  useEffect(() => {
+    const syncSettings = () => {
+      const lightTheme = localStorage.getItem('emagyne_light_theme') === 'true';
+      const disableHighlight = localStorage.getItem('emagyne_disable_code_highlight') === 'true';
+      
+      if (lightTheme) {
+        document.documentElement.classList.add('light-theme');
+      } else {
+        document.documentElement.classList.remove('light-theme');
+      }
+
+      if (disableHighlight) {
+        document.documentElement.classList.add('disable-code-highlight');
+      } else {
+        document.documentElement.classList.remove('disable-code-highlight');
+      }
+    };
+
+    // Run on initial mount
+    syncSettings();
+
+    // Listen for changes from SettingsModal
+    window.addEventListener('storage', syncSettings);
+    return () => window.removeEventListener('storage', syncSettings);
+  }, []);
+
+  const handleCopyQuestion = useCallback(() => {
+    const q = state.questions[currentQuestionIndex];
+    if (!q) return;
+
+    let text = q.question;
+    if (q.type === 'MCQ' && q.options) {
+      const labels = ['A', 'B', 'C', 'D', 'E', 'F'];
+      text += '\n\n' + q.options.map((opt, i) => `${labels[i]}. ${opt}`).join('\n');
+    }
+
+    navigator.clipboard.writeText(text);
+    setCopiedQuestionId(q.id);
+    setTimeout(() => setCopiedQuestionId(null), 2000);
+  }, [state.questions, currentQuestionIndex]);
 
   const [sidebarWidth, setSidebarWidth] = useState(() => {
     const saved = localStorage.getItem('emagyne_navigator_sidebar_width');
@@ -1199,27 +1243,41 @@ Explanation: 5 + 3 is equal to 8."
                       <span className="px-3 py-1 bg-primary/10 text-primary text-[10px] font-black rounded-full uppercase tracking-widest border border-primary/10">
                         {currentQuestion.type === 'MCQ' ? 'Multiple Choice' : 'Numeric Fill-In'}
                       </span>
-                      <label className="flex items-center gap-2 cursor-pointer group select-none">
-                        <input 
-                          type="checkbox"
-                          checked={state.markedForReview.has(currentQuestion.id)}
-                          onChange={(e) => {
-                            playSound('click');
-                            const newMarked = new Set(state.markedForReview);
-                            if (e.target.checked) newMarked.add(currentQuestion.id);
-                            else newMarked.delete(currentQuestion.id);
-                            setState(prev => ({ ...prev, markedForReview: newMarked }));
-                          }}
-                          className="hidden"
-                        />
-                        <div className={cn(
-                          "w-4 h-4 rounded border transition-all flex items-center justify-center",
-                          state.markedForReview.has(currentQuestion.id) ? "bg-blue-500 border-blue-500" : "border-slate-750 group-hover:border-primary/50"
-                        )}>
-                          {state.markedForReview.has(currentQuestion.id) && <Flag size={10} fill="white" className="text-white" />}
-                        </div>
-                        <span className="text-[10px] font-bold text-slate-500 group-hover:text-slate-300 transition-colors">Mark for Review</span>
-                      </label>
+                      <div className="flex items-center gap-4">
+                        <button
+                          onClick={handleCopyQuestion}
+                          className="flex items-center gap-1.5 cursor-pointer text-slate-500 hover:text-primary transition-colors group select-none"
+                          title="Copy Question"
+                        >
+                          {copiedQuestionId === currentQuestion.id ? (
+                            <CheckCircle2 size={14} className="text-green-500" />
+                          ) : (
+                            <Copy size={14} className="group-hover:scale-110 transition-transform" />
+                          )}
+                          <span className="text-[10px] font-bold uppercase tracking-wider">{copiedQuestionId === currentQuestion.id ? 'Copied!' : 'Copy'}</span>
+                        </button>
+                        <label className="flex items-center gap-2 cursor-pointer group select-none">
+                          <input 
+                            type="checkbox"
+                            checked={state.markedForReview.has(currentQuestion.id)}
+                            onChange={(e) => {
+                              playSound('click');
+                              const newMarked = new Set(state.markedForReview);
+                              if (e.target.checked) newMarked.add(currentQuestion.id);
+                              else newMarked.delete(currentQuestion.id);
+                              setState(prev => ({ ...prev, markedForReview: newMarked }));
+                            }}
+                            className="hidden"
+                          />
+                          <div className={cn(
+                            "w-4 h-4 rounded border transition-all flex items-center justify-center",
+                            state.markedForReview.has(currentQuestion.id) ? "bg-blue-500 border-blue-500" : "border-slate-750 group-hover:border-primary/50"
+                          )}>
+                            {state.markedForReview.has(currentQuestion.id) && <Flag size={10} fill="white" className="text-white" />}
+                          </div>
+                          <span className="text-[10px] font-bold text-slate-500 group-hover:text-slate-300 transition-colors uppercase tracking-wider">Mark for Review</span>
+                        </label>
+                      </div>
                     </div>
 
                     <div className="mb-6 md:mb-8">

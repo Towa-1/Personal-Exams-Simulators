@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { X, Eye, EyeOff, ShieldCheck, Key, Volume2, Keyboard, Trash2, Cpu, ExternalLink, Sparkles, Palette } from 'lucide-react';
+import { X, Eye, EyeOff, ShieldCheck, Key, Volume2, Keyboard, Trash2, Cpu, ExternalLink, Sparkles, Palette, Sun, FileCode } from 'lucide-react';
 import { cn } from '../lib/utils';
 
 export type ThemeType = 'gold' | 'emerald' | 'sapphire' | 'ruby';
@@ -44,6 +44,8 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
   const [soundEnabled, setSoundEnabled] = useState(true);
   const [shortcutsEnabled, setShortcutsEnabled] = useState(true);
   const [activeTheme, setActiveTheme] = useState<ThemeType>('gold');
+  const [lightThemeEnabled, setLightThemeEnabled] = useState(false);
+  const [disableCodeHighlight, setDisableCodeHighlight] = useState(false);
   const [isSaved, setIsSaved] = useState(false);
 
   useEffect(() => {
@@ -61,6 +63,8 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
       setSoundEnabled(localStorage.getItem('emagyne_sound_enabled') !== 'false');
       setShortcutsEnabled(localStorage.getItem('emagyne_shortcuts_enabled') !== 'false');
       setActiveTheme((localStorage.getItem('emagyne_theme') as ThemeType) || 'gold');
+      setLightThemeEnabled(localStorage.getItem('emagyne_light_theme') === 'true');
+      setDisableCodeHighlight(localStorage.getItem('emagyne_disable_code_highlight') === 'true');
       setIsSaved(false);
       setActiveTab('generator');
     }
@@ -96,6 +100,8 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
     localStorage.setItem('emagyne_sound_enabled', String(soundEnabled));
     localStorage.setItem('emagyne_shortcuts_enabled', String(shortcutsEnabled));
     localStorage.setItem('emagyne_theme', activeTheme);
+    localStorage.setItem('emagyne_light_theme', String(lightThemeEnabled));
+    localStorage.setItem('emagyne_disable_code_highlight', String(disableCodeHighlight));
     setIsSaved(true);
     setTimeout(() => {
       setIsSaved(false);
@@ -602,6 +608,50 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                         type="checkbox"
                         checked={soundEnabled}
                         onChange={(e) => setSoundEnabled(e.target.checked)}
+                        className="sr-only peer"
+                      />
+                      <div className="w-11 h-6 bg-slate-800 peer-focus:outline-none rounded-full peer after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-slate-400 after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary peer-checked:after:translate-x-5 peer-checked:after:bg-slate-950 transition-colors" />
+                    </div>
+                  </label>
+
+                  {/* Light Theme */}
+                  <label className="flex items-center justify-between p-3 bg-slate-950/30 border border-slate-800/50 rounded-2xl cursor-pointer hover:border-slate-700/50 transition-colors">
+                    <div className="flex items-start gap-3">
+                      <div className="p-2 bg-slate-800/50 rounded-lg text-primary mt-0.5">
+                        <Sun size={18} />
+                      </div>
+                      <div>
+                        <div className="text-sm font-bold text-slate-200">Light Theme</div>
+                        <div className="text-xs text-slate-500">Enable light color scheme.</div>
+                      </div>
+                    </div>
+                    <div className="relative">
+                      <input
+                        type="checkbox"
+                        checked={lightThemeEnabled}
+                        onChange={(e) => setLightThemeEnabled(e.target.checked)}
+                        className="sr-only peer"
+                      />
+                      <div className="w-11 h-6 bg-slate-800 peer-focus:outline-none rounded-full peer after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-slate-400 after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary peer-checked:after:translate-x-5 peer-checked:after:bg-slate-950 transition-colors" />
+                    </div>
+                  </label>
+
+                  {/* Disable Code Highlight */}
+                  <label className="flex items-center justify-between p-3 bg-slate-950/30 border border-slate-800/50 rounded-2xl cursor-pointer hover:border-slate-700/50 transition-colors">
+                    <div className="flex items-start gap-3">
+                      <div className="p-2 bg-slate-800/50 rounded-lg text-primary mt-0.5">
+                        <FileCode size={18} />
+                      </div>
+                      <div>
+                        <div className="text-sm font-bold text-slate-200">Disable Code Highlighting</div>
+                        <div className="text-xs text-slate-500">Remove background from inline code snippets.</div>
+                      </div>
+                    </div>
+                    <div className="relative">
+                      <input
+                        type="checkbox"
+                        checked={disableCodeHighlight}
+                        onChange={(e) => setDisableCodeHighlight(e.target.checked)}
                         className="sr-only peer"
                       />
                       <div className="w-11 h-6 bg-slate-800 peer-focus:outline-none rounded-full peer after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-slate-400 after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary peer-checked:after:translate-x-5 peer-checked:after:bg-slate-950 transition-colors" />
