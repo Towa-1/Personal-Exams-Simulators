@@ -363,241 +363,29 @@ export default function App() {
   const [isChatOpen, setIsChatOpen] = useState(false);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const parseAbortControllerRef = useRef<AbortController | null>(null);
   const [copiedQuestionId, setCopiedQuestionId] = useState<string | null>(null);
 
-  // Sync Global Settings
-  useEffect(() => {
-    const syncSettings = () => {
-      const lightTheme = localStorage.getItem('emagyne_light_theme') === 'true';
-      const disableHighlight = localStorage.getItem('emagyne_disable_code_highlight') === 'true';
-      
-      if (lightTheme) {
-        document.documentElement.classList.add('light-theme');
-      } else {
-        document.documentElement.classList.remove('light-theme');
-      }
-
-      if (disableHighlight) {
-        document.documentElement.classList.add('disable-code-highlight');
-      } else {
-        document.documentElement.classList.remove('disable-code-highlight');
-      }
-    };
-
-    // Run on initial mount
-    syncSettings();
-
-    // Listen for changes from SettingsModal
-    window.addEventListener('storage', syncSettings);
-    return () => window.removeEventListener('storage', syncSettings);
-  }, []);
-
-  const handleCopyQuestion = useCallback(() => {
-    const q = state.questions[currentQuestionIndex];
-    if (!q) return;
-
-    let text = q.question;
-    if (q.type === 'MCQ' && q.options) {
-      const labels = ['A', 'B', 'C', 'D', 'E', 'F'];
-      text += '\n\n' + q.options.map((opt, i) => `${labels[i]}. ${opt}`).join('\n');
+  const handleCancelParse = () => {
+    if (parseAbortControllerRef.current) {
+      parseAbortControllerRef.current.abort();
+      parseAbortControllerRef.current = null;
     }
-
-    navigator.clipboard.writeText(text);
-    setCopiedQuestionId(q.id);
-    setTimeout(() => setCopiedQuestionId(null), 2000);
-  }, [state.questions, currentQuestionIndex]);
-
-  const [sidebarWidth, setSidebarWidth] = useState(() => {
-    const saved = localStorage.getItem('emagyne_navigator_sidebar_width');
-    return saved ? parseInt(saved, 10) : 288;
-  });
-
-  const handleSidebarMouseDown = (e: React.MouseEvent) => {
-    e.preventDefault();
-    const startX = e.clientX;
-    const startWidth = sidebarWidth;
-
-    const handleMouseMove = (moveEvent: MouseEvent) => {
-      const delta = moveEvent.clientX - startX;
-      const newWidth = Math.max(200, Math.min(450, startWidth + delta));
-      setSidebarWidth(newWidth);
-      localStorage.setItem('emagyne_navigator_sidebar_width', newWidth.toString());
-    };
-
-    const handleMouseUp = () => {
-      document.removeEventListener('mousemove', handleMouseMove);
-      document.removeEventListener('mouseup', handleMouseUp);
-    };
-
-    document.addEventListener('mousemove', handleMouseMove);
-    document.addEventListener('mouseup', handleMouseUp);
+    setIsParsing(false);
+    setParseError("Question parsing was cancelled.");
+    playSound('click');
   };
-
-  // Check for API Key presence
-  const checkApiKey = useCallback(() => {
-    const localKey = localStorage.getItem('emagyne_api_key');
-    // process.env is injected by Vite Define
-    const envKey = (process.env as any).GEMINI_API_KEY;
-    const hasKey = (localKey && localKey.trim() !== '') || (envKey && envKey !== 'MY_GEMINI_API_KEY' && envKey.trim() !== '');
-    setHasApiKey(!!hasKey);
-  }, []);
-
-  // Load history
-  const loadHistory = useCallback(() => {
-    try {
-      const savedHistory = localStorage.getItem('emagyne_history');
-      if (savedHistory) {
-        setHistory(JSON.parse(savedHistory));
-      }
-    } catch (e) {
-      console.error("Failed to load history", e);
-    }
-  }, []);
-
-  useEffect(() => {
-    checkApiKey();
-    loadHistory();
-
-    // Listen for storage events (emitted when SettingsModal saves)
-    window.addEventListener('storage', checkApiKey);
-    window.addEventListener('storage', loadHistory);
-    return () => {
-      window.removeEventListener('storage', checkApiKey);
-      window.removeEventListener('storage', loadHistory);
-    };
-  }, [checkApiKey, loadHistory]);
-
-  // Scroll to top on question change
-  useEffect(() => {
-    if (state.phase === 'QUIZ' && !isChatOpen) {
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-    }
-  }, [currentQuestionIndex, isChatOpen, state.phase]);
-
-  // Persistence
-  useEffect(() => {
-    const stateToSave = {
-      ...state,
-      markedForReview: Array.from(state.markedForReview),
-      checkedAnswers: Array.from(state.checkedAnswers),
-    };
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(stateToSave));
-  }, [state]);
-
-  // Timer logic
-  useEffect(() => {
-    if (state.phase === 'QUIZ' && !state.isPaused && state.timeRemaining > 0) {
-      timerRef.current = setInterval(() => {
-        setState(prev => {
-          if (prev.timeRemaining <= 1) {
-            clearInterval(timerRef.current!);
-            // Handle auto-finish on time out
-            const timeTaken = prev.duration * 60;
-            const score = Object.entries(prev.userAnswers).filter(([id, ans]) => ans === prev.questions.find(q => q.id === id)?.answer).length;
-            const newAttempt: ExamAttempt = {
-              id: `attempt-${Date.now()}`,
-              date: Date.now(),
-              score,
-              total: prev.questions.length,
-              timeTaken,
-              duration: prev.duration
-            };
-            const currentHistory = JSON.parse(localStorage.getItem('emagyne_history') || '[]');
-            localStorage.setItem('emagyne_history', JSON.stringify([newAttempt, ...currentHistory]));
-            loadHistory();
-            playSound('complete');
-
-            return { ...prev, timeRemaining: 0, phase: 'RESULTS', endTime: Date.now() };
-          }
-          return { ...prev, timeRemaining: prev.timeRemaining - 1 };
-        });
-      }, 1000);
-    } else {
-      if (timerRef.current) clearInterval(timerRef.current);
-    }
-    return () => {
-      if (timerRef.current) clearInterval(timerRef.current);
-    };
-  }, [state.phase, state.isPaused, state.timeRemaining, loadHistory]);
-
-  // Keyboard Shortcuts
-  useEffect(() => {
-    const enabled = localStorage.getItem('emagyne_shortcuts_enabled') !== 'false';
-    if (!enabled || state.phase !== 'QUIZ' || state.isPaused) return;
-
-    const handleKeyDown = (e: KeyboardEvent) => {
-      const activeEl = document.activeElement;
-      const isTyping = activeEl && (activeEl.tagName === 'INPUT' || activeEl.tagName === 'TEXTAREA');
-
-      if (e.key === 'ArrowLeft' || e.key === 'p' || e.key === 'P') {
-        if (!isTyping) {
-          e.preventDefault();
-          setCurrentQuestionIndex(prev => Math.max(0, prev - 1));
-          playSound('click');
-        }
-      } else if (e.key === 'ArrowRight' || e.key === 'n' || e.key === 'N') {
-        if (!isTyping) {
-          e.preventDefault();
-          setCurrentQuestionIndex(prev => Math.min(state.questions.length - 1, prev + 1));
-          playSound('click');
-        }
-      } else if (e.key === 'm' || e.key === 'M') {
-        if (!isTyping) {
-          e.preventDefault();
-          const qId = state.questions[currentQuestionIndex].id;
-          setState(prev => {
-            const newMarked = new Set(prev.markedForReview);
-            if (newMarked.has(qId)) newMarked.delete(qId);
-            else newMarked.add(qId);
-            return { ...prev, markedForReview: newMarked };
-          });
-          playSound('click');
-        }
-      } else if (e.key === 'Enter') {
-        e.preventDefault();
-        const qId = state.questions[currentQuestionIndex].id;
-        const isChecked = state.checkedAnswers.has(qId);
-        const hasAnswer = state.userAnswers[qId] !== undefined;
-
-        if (!isChecked && hasAnswer) {
-          const q = state.questions[currentQuestionIndex];
-          const isCorrect = state.userAnswers[qId] === q.answer;
-          setState(prev => ({ ...prev, checkedAnswers: new Set(prev.checkedAnswers).add(qId) }));
-          playSound(isCorrect ? 'correct' : 'incorrect');
-        } else if (isChecked || !hasAnswer) {
-          if (currentQuestionIndex === state.questions.length - 1) {
-            finishExam();
-          } else {
-            setCurrentQuestionIndex(prev => prev + 1);
-            playSound('click');
-          }
-        }
-      } else if (!isTyping && /^[1-9]$/.test(e.key)) {
-        const q = state.questions[currentQuestionIndex];
-        if (q.type === 'MCQ' && q.options) {
-          const optIdx = parseInt(e.key) - 1;
-          if (optIdx < q.options.length) {
-            const option = q.options[optIdx];
-            setState(prev => ({
-              ...prev,
-              userAnswers: { ...prev.userAnswers, [q.id]: option }
-            }));
-            playSound('click');
-          }
-        }
-      }
-    };
-
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [state.phase, state.isPaused, state.questions, currentQuestionIndex, state.userAnswers, state.checkedAnswers]);
 
   const handleParse = async () => {
     if (!rawInput.trim()) return;
     setIsParsing(true);
     setParseError(null);
+
+    const controller = new AbortController();
+    parseAbortControllerRef.current = controller;
+
     try {
-      const questions = await parseQuestions(rawInput);
+      const questions = await parseQuestions(rawInput, controller.signal);
       if (questions && questions.length > 0) {
         setState(prev => ({ ...prev, questions, phase: 'SETUP' }));
         playSound('correct');
@@ -606,6 +394,10 @@ export default function App() {
         playSound('incorrect');
       }
     } catch (e: any) {
+      if (e.name === 'AbortError' || controller.signal.aborted) {
+        setParseError("Question parsing was cancelled.");
+        return;
+      }
       console.error("Parse Error:", e);
       playSound('incorrect');
       if (e.message === 'MISSING_API_KEY') {
@@ -617,6 +409,7 @@ export default function App() {
       }
     } finally {
       setIsParsing(false);
+      parseAbortControllerRef.current = null;
     }
   };
 
@@ -908,27 +701,29 @@ Explanation: 5 + 3 is equal to 8."
                   )}
 
                   <div className="flex flex-col sm:flex-row gap-3.5 mt-6">
-                    <button
-                      onClick={handleParse}
-                      disabled={isParsing || !rawInput.trim() || !hasApiKey}
-                      className="flex-1 py-3.5 bg-primary hover:bg-primary-hover disabled:opacity-35 disabled:cursor-not-allowed text-slate-950 font-black text-sm md:text-base rounded-2xl transition-all flex items-center justify-center gap-2 cursor-pointer shadow-lg shadow-primary/10"
-                    >
-                      {isParsing ? (
-                        <>
-                          <RotateCcw className="animate-spin" size={18} />
-                          AI STRUCTURING...
-                        </>
-                      ) : (
-                        <>
-                          <Sparkles size={18} fill="currentColor" />
-                          GENERATE VIA AI
-                        </>
-                      )}
-                    </button>
+                    {isParsing ? (
+                      <button
+                        onClick={handleCancelParse}
+                        className="flex-1 py-3.5 bg-red-500/20 hover:bg-red-500/30 text-red-300 border border-red-500/40 font-black text-sm md:text-base rounded-2xl transition-all flex items-center justify-center gap-2 cursor-pointer shadow-lg shadow-red-500/10"
+                      >
+                        <X size={18} />
+                        CANCEL GENERATION
+                      </button>
+                    ) : (
+                      <button
+                        onClick={handleParse}
+                        disabled={!rawInput.trim() || !hasApiKey}
+                        className="flex-1 py-3.5 bg-primary hover:bg-primary-hover disabled:opacity-35 disabled:cursor-not-allowed text-slate-950 font-black text-sm md:text-base rounded-2xl transition-all flex items-center justify-center gap-2 cursor-pointer shadow-lg shadow-primary/10"
+                      >
+                        <Sparkles size={18} fill="currentColor" />
+                        GENERATE VIA AI
+                      </button>
+                    )}
                     
                     <button
                       onClick={handleLoadDemo}
-                      className="py-3.5 px-6 border border-primary/20 text-primary font-bold rounded-2xl hover:bg-primary/5 transition-all text-sm md:text-base cursor-pointer flex items-center justify-center gap-2"
+                      disabled={isParsing}
+                      className="py-3.5 px-6 border border-primary/20 text-primary font-bold rounded-2xl hover:bg-primary/5 disabled:opacity-30 transition-all text-sm md:text-base cursor-pointer flex items-center justify-center gap-2"
                       title="Load built-in practice questions instantly"
                     >
                       <Sparkle size={16} className="text-primary animate-pulse" />

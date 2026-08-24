@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { X, Eye, EyeOff, ShieldCheck, Key, Volume2, Keyboard, Trash2, Cpu, ExternalLink, Sparkles, Palette, Sun, FileCode } from 'lucide-react';
 import { cn } from '../lib/utils';
 
-export type ThemeType = 'gold' | 'emerald' | 'sapphire' | 'ruby';
+export type ThemeType = 'violet' | 'gold' | 'emerald' | 'sapphire' | 'ruby';
 
 interface ThemeOption {
   id: ThemeType;
@@ -13,10 +13,11 @@ interface ThemeOption {
 }
 
 const THEMES: ThemeOption[] = [
-  { id: 'gold', name: 'Amber Gold', className: '', colorClass: 'bg-yellow-500' },
-  { id: 'emerald', name: 'Emerald Cyber', className: 'theme-emerald', colorClass: 'bg-emerald-500' },
-  { id: 'sapphire', name: 'Sapphire Deep', className: 'theme-sapphire', colorClass: 'bg-blue-500' },
-  { id: 'ruby', name: 'Ruby Crimson', className: 'theme-ruby', colorClass: 'bg-red-500' },
+  { id: 'violet', name: 'Neon Violet (Cyber)', className: '', colorClass: 'bg-purple-500' },
+  { id: 'gold', name: 'Amber Sunset', className: 'theme-gold', colorClass: 'bg-amber-500' },
+  { id: 'emerald', name: 'Emerald Matrix', className: 'theme-emerald', colorClass: 'bg-emerald-500' },
+  { id: 'sapphire', name: 'Sapphire Cosmic', className: 'theme-sapphire', colorClass: 'bg-blue-500' },
+  { id: 'ruby', name: 'Ruby Rose', className: 'theme-ruby', colorClass: 'bg-rose-500' },
 ];
 
 interface SettingsModalProps {
@@ -30,6 +31,7 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
   // Generator API settings
   const [provider, setProvider] = useState<'gemini' | 'openai' | 'deepseek' | 'openrouter' | 'custom'>('gemini');
   const [apiKey, setApiKey] = useState('');
+  const [geminiModel, setGeminiModel] = useState('gemini-2.0-flash');
   const [customUrl, setCustomUrl] = useState('');
   const [customModel, setCustomModel] = useState('');
   const [showKey, setShowKey] = useState(false);
@@ -43,7 +45,7 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
 
   const [soundEnabled, setSoundEnabled] = useState(true);
   const [shortcutsEnabled, setShortcutsEnabled] = useState(true);
-  const [activeTheme, setActiveTheme] = useState<ThemeType>('gold');
+  const [activeTheme, setActiveTheme] = useState<ThemeType>('violet');
   const [lightThemeEnabled, setLightThemeEnabled] = useState(false);
   const [disableCodeHighlight, setDisableCodeHighlight] = useState(false);
   const [isSaved, setIsSaved] = useState(false);
@@ -52,6 +54,7 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
     if (isOpen) {
       setProvider((localStorage.getItem('emagyne_api_provider') as any) || 'gemini');
       setApiKey(localStorage.getItem('emagyne_api_key') || '');
+      setGeminiModel(localStorage.getItem('emagyne_gemini_model') || 'gemini-2.0-flash');
       setCustomUrl(localStorage.getItem('emagyne_custom_url') || '');
       setCustomModel(localStorage.getItem('emagyne_custom_model') || '');
 
@@ -62,7 +65,7 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
 
       setSoundEnabled(localStorage.getItem('emagyne_sound_enabled') !== 'false');
       setShortcutsEnabled(localStorage.getItem('emagyne_shortcuts_enabled') !== 'false');
-      setActiveTheme((localStorage.getItem('emagyne_theme') as ThemeType) || 'gold');
+      setActiveTheme((localStorage.getItem('emagyne_theme') as ThemeType) || 'violet');
       setLightThemeEnabled(localStorage.getItem('emagyne_light_theme') === 'true');
       setDisableCodeHighlight(localStorage.getItem('emagyne_disable_code_highlight') === 'true');
       setIsSaved(false);
@@ -89,6 +92,7 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
     e.preventDefault();
     localStorage.setItem('emagyne_api_provider', provider);
     localStorage.setItem('emagyne_api_key', apiKey.trim());
+    localStorage.setItem('emagyne_gemini_model', geminiModel);
     localStorage.setItem('emagyne_custom_url', customUrl.trim());
     localStorage.setItem('emagyne_custom_model', customModel.trim());
 
@@ -210,6 +214,26 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                       <option value="custom">Custom (OpenAI-Compatible)</option>
                     </select>
                   </div>
+
+                  {/* Gemini Model Dropdown */}
+                  {provider === 'gemini' && (
+                    <div className="space-y-2">
+                      <label className="flex items-center gap-2 text-xs font-black text-slate-400 uppercase tracking-wider">
+                        <Sparkles size={14} className="text-primary" />
+                        Gemini Model
+                      </label>
+                      <select
+                        value={geminiModel}
+                        onChange={(e) => setGeminiModel(e.target.value)}
+                        className="w-full bg-slate-950/50 border border-primary/20 rounded-xl py-3 px-4 text-sm focus:outline-none focus:border-primary/50 text-slate-200 cursor-pointer"
+                      >
+                        <option value="gemini-2.0-flash">Gemini 2.0 Flash (Recommended - Fast & Latest)</option>
+                        <option value="gemini-1.5-flash">Gemini 1.5 Flash (Fast & Stable)</option>
+                        <option value="gemini-1.5-pro">Gemini 1.5 Pro (Deep Reasoning & Complex Math)</option>
+                        <option value="gemini-2.0-flash-lite">Gemini 2.0 Flash Lite (Lightweight)</option>
+                      </select>
+                    </div>
+                  )}
 
                   {/* API Key Input */}
                   <div className="space-y-2">
