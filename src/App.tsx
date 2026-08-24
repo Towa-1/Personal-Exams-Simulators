@@ -38,7 +38,8 @@ import {
   HelpCircle,
   Sparkle,
   ExternalLink,
-  Copy
+  Copy,
+  X
 } from 'lucide-react';
 
 const STORAGE_KEY = 'emagyne_exam_state';
@@ -377,6 +378,108 @@ export default function App() {
       localStorage.setItem('emagyne_custom_model', 'gemini-2.0-flash');
     }
   }, []);
+
+  // Sync Global Settings
+  useEffect(() => {
+    const syncSettings = () => {
+      const lightTheme = localStorage.getItem('emagyne_light_theme') === 'true';
+      const disableHighlight = localStorage.getItem('emagyne_disable_code_highlight') === 'true';
+      
+      if (lightTheme) {
+        document.documentElement.classList.add('light-theme');
+      } else {
+        document.documentElement.classList.remove('light-theme');
+      }
+
+      if (disableHighlight) {
+        document.documentElement.classList.add('disable-code-highlight');
+      } else {
+        document.documentElement.classList.remove('disable-code-highlight');
+      }
+    };
+
+    // Run on initial mount
+    syncSettings();
+
+    // Listen for changes from SettingsModal
+    window.addEventListener('storage', syncSettings);
+    return () => window.removeEventListener('storage', syncSettings);
+  }, []);
+
+  const handleCopyQuestion = useCallback(() => {
+    const q = state.questions[currentQuestionIndex];
+    if (!q) return;
+
+    let text = q.question;
+    if (q.type === 'MCQ' && q.options) {
+      const labels = ['A', 'B', 'C', 'D', 'E', 'F'];
+      text += '\n\n' + q.options.map((opt, i) => `${labels[i]}. ${opt}`).join('\n');
+    }
+
+    navigator.clipboard.writeText(text);
+    setCopiedQuestionId(q.id);
+    setTimeout(() => setCopiedQuestionId(null), 2000);
+  }, [state.questions, currentQuestionIndex]);
+
+  const [sidebarWidth, setSidebarWidth] = useState(() => {
+    const saved = localStorage.getItem('emagyne_navigator_sidebar_width');
+    return saved ? parseInt(saved, 10) : 288;
+  });
+
+  const handleSidebarMouseDown = (e: React.MouseEvent) => {
+    e.preventDefault();
+    const startX = e.clientX;
+    const startWidth = sidebarWidth;
+
+    const handleMouseMove = (moveEvent: MouseEvent) => {
+      const delta = moveEvent.clientX - startX;
+      const newWidth = Math.max(200, Math.min(450, startWidth + delta));
+      setSidebarWidth(newWidth);
+      localStorage.setItem('emagyne_navigator_sidebar_width', newWidth.toString());
+    };
+
+    const handleMouseUp = () => {
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+    };
+
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseup', handleMouseUp);
+  };
+
+  // Check for API Key presence
+  const checkApiKey = useCallback(() => {
+    const localKey = localStorage.getItem('emagyne_api_key');
+    // process.env is injected by Vite Define
+    const envKey = (process.env as any).GEMINI_API_KEY;
+    const hasKey = (localKey && localKey.trim() !== '') || (envKey && envKey !== 'MY_GEMINI_API_KEY' && envKey.trim() !== '');
+    setHasApiKey(!!hasKey);
+  }, []);
+
+  // Load history
+  const loadHistory = useCallback(() => {
+    try {
+      const savedHistory = localStorage.getItem('emagyne_history');
+      if (savedHistory) {
+        setHistory(JSON.parse(savedHistory));
+      }
+    } catch (e) {
+      console.error("Failed to load history", e);
+    }
+  }, []);
+
+  useEffect(() => {
+    checkApiKey();
+    loadHistory();
+
+    // Listen for storage events (emitted when SettingsModal saves)
+    window.addEventListener('storage', checkApiKey);
+    window.addEventListener('storage', loadHistory);
+    return () => {
+      window.removeEventListener('storage', checkApiKey);
+      window.removeEventListener('storage', loadHistory);
+    };
+  }, [checkApiKey, loadHistory]);
 
   const handleCancelParse = () => {
     if (parseAbortControllerRef.current) {
