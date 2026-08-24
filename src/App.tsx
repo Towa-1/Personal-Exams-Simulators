@@ -366,6 +366,18 @@ export default function App() {
   const parseAbortControllerRef = useRef<AbortController | null>(null);
   const [copiedQuestionId, setCopiedQuestionId] = useState<string | null>(null);
 
+  // Auto-clean legacy deprecated model from browser localStorage
+  useEffect(() => {
+    const savedModel = localStorage.getItem('emagyne_gemini_model');
+    const savedCustomModel = localStorage.getItem('emagyne_custom_model');
+    if (savedModel && savedModel.includes('gemini-2.5-flash')) {
+      localStorage.setItem('emagyne_gemini_model', 'gemini-2.0-flash');
+    }
+    if (savedCustomModel && savedCustomModel.includes('gemini-2.5-flash')) {
+      localStorage.setItem('emagyne_custom_model', 'gemini-2.0-flash');
+    }
+  }, []);
+
   const handleCancelParse = () => {
     if (parseAbortControllerRef.current) {
       parseAbortControllerRef.current.abort();

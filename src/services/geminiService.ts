@@ -1,11 +1,19 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import { Question } from "../types";
 
+const sanitizeModel = (modelName: string | null): string => {
+  if (!modelName || modelName.includes("gemini-2.5-flash")) {
+    return "gemini-2.0-flash";
+  }
+  return modelName;
+};
+
 const getApiConfig = () => {
   const provider = localStorage.getItem("emagyne_api_provider") || "gemini";
   const key = localStorage.getItem("emagyne_api_key") || (process.env as any).GEMINI_API_KEY || "";
   const customUrl = localStorage.getItem("emagyne_custom_url") || "";
-  const customModel = localStorage.getItem("emagyne_custom_model") || localStorage.getItem("emagyne_gemini_model") || "gemini-2.0-flash";
+  const rawModel = localStorage.getItem("emagyne_custom_model") || localStorage.getItem("emagyne_gemini_model") || "gemini-2.0-flash";
+  const customModel = sanitizeModel(rawModel);
 
   return { provider, key, customUrl, customModel };
 };
@@ -14,7 +22,8 @@ const getChatApiConfig = () => {
   const provider = localStorage.getItem("emagyne_chat_provider") || localStorage.getItem("emagyne_api_provider") || "gemini";
   const key = localStorage.getItem("emagyne_chat_api_key") || localStorage.getItem("emagyne_api_key") || (process.env as any).GEMINI_API_KEY || "";
   const customUrl = localStorage.getItem("emagyne_chat_custom_url") || localStorage.getItem("emagyne_custom_url") || "";
-  const customModel = localStorage.getItem("emagyne_chat_custom_model") || localStorage.getItem("emagyne_custom_model") || localStorage.getItem("emagyne_gemini_model") || "gemini-2.0-flash";
+  const rawModel = localStorage.getItem("emagyne_chat_custom_model") || localStorage.getItem("emagyne_custom_model") || localStorage.getItem("emagyne_gemini_model") || "gemini-2.0-flash";
+  const customModel = sanitizeModel(rawModel);
 
   return { provider, key, customUrl, customModel };
 };
@@ -159,13 +168,13 @@ ${rawText}`;
     const ai = new GoogleGenAI({ apiKey: key });
     
     // Model preference list: custom/selected model, then standard gemini-2.0-flash, gemini-1.5-flash, gemini-1.5-pro
-    const primaryModel = customModel || "gemini-2.0-flash";
+    const primaryModel = sanitizeModel(customModel) || "gemini-2.0-flash";
     const candidateModels = Array.from(new Set([
       primaryModel,
       "gemini-2.0-flash",
       "gemini-1.5-flash",
       "gemini-1.5-pro"
-    ]));
+    ])).filter(m => m && !m.includes("gemini-2.5-flash"));
 
     let lastError: any = null;
 
@@ -297,13 +306,13 @@ export async function generateChatResponse(
       parts: [{ text: msg.content }]
     }));
 
-    const primaryModel = customModel || "gemini-2.0-flash";
+    const primaryModel = sanitizeModel(customModel) || "gemini-2.0-flash";
     const candidateModels = Array.from(new Set([
       primaryModel,
       "gemini-2.0-flash",
       "gemini-1.5-flash",
       "gemini-1.5-pro"
-    ]));
+    ])).filter(m => m && !m.includes("gemini-2.5-flash"));
 
     let lastError: any = null;
 
