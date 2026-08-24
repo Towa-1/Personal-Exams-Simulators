@@ -2,7 +2,7 @@ import { GoogleGenAI, Type } from "@google/genai";
 import { Question } from "../types";
 
 const sanitizeModel = (modelName: string | null): string => {
-  if (!modelName || modelName.includes("gemini-2.5-flash")) {
+  if (!modelName || modelName.includes("gemini-2.5-flash") || modelName === "gemini-1.5-pro") {
     return "gemini-2.0-flash";
   }
   return modelName;
@@ -28,6 +28,32 @@ const getChatApiConfig = () => {
   return { provider, key, customUrl, customModel };
 };
 
+
+function formatAiError(err: any): string {
+  if (!err) return "An unknown error occurred while contacting the AI service.";
+  const rawMsg = typeof err === "string" ? err : err.message || String(err);
+
+  if (rawMsg.includes("NOT_FOUND") || rawMsg.includes("is not found for API version")) {
+    return "Invalid Gemini API Key or Model Access Error. Official Google Gemini keys start with 'AIzaSy...'. Please click the Settings gear icon in the top right to verify your key from Google AI Studio (aistudio.google.com), or switch to OpenRouter (Free Models).";
+  }
+  if (rawMsg.includes("API_KEY_INVALID") || rawMsg.includes("API key not valid") || rawMsg.includes("UNAUTHENTICATED")) {
+    return "Invalid API Key. Please click the Settings gear icon in the top right to configure a valid API Key.";
+  }
+  if (rawMsg.includes("RESOURCE_EXHAUSTED") || rawMsg.includes("429") || rawMsg.includes("quota")) {
+    return "Quota or rate limit exceeded. Please wait a moment or try switching providers in Settings.";
+  }
+
+  try {
+    const parsed = JSON.parse(rawMsg);
+    if (parsed?.error?.message) {
+      return parsed.error.message;
+    }
+  } catch (e) {
+    // Not raw JSON
+  }
+
+  return rawMsg;
+}
 
 export async function parseQuestions(rawText: string, signal?: AbortSignal): Promise<Question[]> {
   const { provider, key, customUrl, customModel } = getApiConfig();
@@ -141,7 +167,7 @@ ${rawText}`;
     if (!response.ok) {
       const errData = await response.json().catch(() => ({}));
       const errMsg = errData?.error?.message || `HTTP error ${response.status}`;
-      throw new Error(`API Error: ${errMsg}`);
+      throw new Error(formatAiError(errMsg));
     }
 
     const data = await response.json();
@@ -167,14 +193,13 @@ ${rawText}`;
     // Gemini with fallback logic and model resolution
     const ai = new GoogleGenAI({ apiKey: key });
     
-    // Model preference list: custom/selected model, then standard gemini-2.0-flash, gemini-1.5-flash, gemini-1.5-pro
+    // Model preference list: custom/selected model, then standard gemini-2.0-flash, gemini-1.5-flash
     const primaryModel = sanitizeModel(customModel) || "gemini-2.0-flash";
     const candidateModels = Array.from(new Set([
       primaryModel,
       "gemini-2.0-flash",
-      "gemini-1.5-flash",
-      "gemini-1.5-pro"
-    ])).filter(m => m && !m.includes("gemini-2.5-flash"));
+      "gemini-1.5-flash"
+    ])).filter(m => m && !m.includes("2.5-flash") && m !== "gemini-1.5-pro");
 
     let lastError: any = null;
 
@@ -222,7 +247,7 @@ ${rawText}`;
     }
 
     console.error("All Gemini model fallbacks failed", lastError);
-    throw new Error(lastError?.message || "Failed to process request with Gemini AI. Please check your API key or network.");
+    throw new Error(formatAiError(lastError));
   }
 }
 
@@ -310,9 +335,8 @@ export async function generateChatResponse(
     const candidateModels = Array.from(new Set([
       primaryModel,
       "gemini-2.0-flash",
-      "gemini-1.5-flash",
-      "gemini-1.5-pro"
-    ])).filter(m => m && !m.includes("gemini-2.5-flash"));
+      "gemini-1.5-flash"
+    ])).filter(m => m && !m.includes("2.5-flash") && m !== "gemini-1.5-pro");
 
     let lastError: any = null;
 
@@ -338,7 +362,7 @@ export async function generateChatResponse(
       }
     }
 
-    throw new Error(lastError?.message || "Failed to generate AI response.");
+    throw new Error(formatAiError(lastError));
   }
 }
 
